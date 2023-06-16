@@ -37,8 +37,9 @@ import (
 )
 
 const (
-	DEFAULT_CONFIG_DELIMITER = "="
-	ETCD_CONFIG_DELIMITER    = ": "
+	DEFAULT_CONFIG_DELIMITER  = "="
+	ETCD_CONFIG_DELIMITER     = ": "
+	TOOLS_V2_CONFIG_DELIMITER = ":"
 
 	CURVE_CRONTAB_FILE = "/tmp/curve_crontab"
 )
@@ -108,7 +109,7 @@ func NewSyncConfigTask(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (*task
 	var out string
 	layout := dc.GetProjectLayout()
 	role := dc.GetRole()
-	reportScript := scripts.SCRIPT_REPORT
+	reportScript := scripts.REPORT
 	reportScriptPath := fmt.Sprintf("%s/report.sh", layout.ToolsBinDir)
 	crontab := newCrontab(curveadm.ClusterUUId(), dc, reportScriptPath)
 	delimiter := DEFAULT_CONFIG_DELIMITER
@@ -144,6 +145,15 @@ func NewSyncConfigTask(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (*task
 		ContainerDestPath: layout.ToolsConfSystemPath,
 		KVFieldSplit:      DEFAULT_CONFIG_DELIMITER,
 		Mutate:            newMutate(dc, DEFAULT_CONFIG_DELIMITER, false),
+		ExecOptions:       curveadm.ExecOptions(),
+	})
+	t.AddStep(&step.TrySyncFile{ // sync tools-v2 config
+		ContainerSrcId:    &containerId,
+		ContainerSrcPath:  layout.ToolsV2ConfSrcPath,
+		ContainerDestId:   &containerId,
+		ContainerDestPath: layout.ToolsV2ConfSystemPath,
+		KVFieldSplit:      TOOLS_V2_CONFIG_DELIMITER,
+		Mutate:            newMutate(dc, TOOLS_V2_CONFIG_DELIMITER, false),
 		ExecOptions:       curveadm.ExecOptions(),
 	})
 	t.AddStep(&step.InstallFile{ // install report script

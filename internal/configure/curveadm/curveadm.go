@@ -40,6 +40,9 @@ import (
  * [ssh_connections]
  * retries = 3
  * timeout = 10
+ *
+ * [database]
+ *   url = "sqlite:///home/curve/.curveadm/data/curveadm.db"
  */
 const (
 	KEY_LOG_LEVEL    = "log_level"
@@ -48,6 +51,7 @@ const (
 	KEY_AUTO_UPGRADE = "auto_upgrade"
 	KEY_SSH_RETRIES  = "retries"
 	KEY_SSH_TIMEOUT  = "timeout"
+	KEY_DB_URL       = "url"
 
 	WITHOUT_SUDO = " "
 )
@@ -60,11 +64,13 @@ type (
 		AutoUpgrade bool
 		SSHRetries  int
 		SSHTimeout  int
+		DBUrl       string
 	}
 
 	CurveAdm struct {
 		Defaults       map[string]interface{} `mapstructure:"defaults"`
 		SSHConnections map[string]interface{} `mapstructure:"ssh_connections"`
+		DataBase       map[string]interface{} `mapstructure:"database"`
 	}
 )
 
@@ -234,4 +240,11 @@ func (cfg *CurveAdmConfig) GetSudoAlias() string {
 		return WITHOUT_SUDO
 	}
 	return cfg.SudoAlias
+}
+
+func (cfg *CurveAdmConfig) GetDBUrl() string {
+	if len(cfg.DBUrl) > 0 {
+		return cfg.DBUrl
+	}
+	return ""
 }

@@ -137,11 +137,21 @@ type (
 		module.ExecOptions
 	}
 
+	BlockId struct {
+		Device   string
+		Format   string
+		MatchTag string
+		Success  *bool
+		Out      *string
+		module.ExecOptions
+	}
+
 	// network
 	SocketStatistics struct {
 		Filter    string
 		Listening bool // display listening sockets
 		NoHeader  bool // Suppress header line
+		TCP       bool // display only TCP sockets
 		Success   *bool
 		Out       *string
 		module.ExecOptions
@@ -405,6 +415,19 @@ func (s *ListBlockDevice) Execute(ctx *context.Context) error {
 	return PostHandle(s.Success, s.Out, out, err, errno.ERR_LIST_BLOCK_DEVICES_FAILED)
 }
 
+func (s *BlockId) Execute(ctx *context.Context) error {
+	cmd := ctx.Module().Shell().BlkId(s.Device)
+	if len(s.Format) > 0 {
+		cmd.AddOption("--output=%s", s.Format)
+	}
+	if len(s.MatchTag) > 0 {
+		cmd.AddOption("--match-tag=%s", s.MatchTag)
+	}
+
+	out, err := cmd.Execute(s.ExecOptions)
+	return PostHandle(s.Success, s.Out, out, err, errno.ERR_GET_BLOCK_DEVICE_UUID_FAILED)
+}
+
 // network
 func (s *SocketStatistics) Execute(ctx *context.Context) error {
 	cmd := ctx.Module().Shell().SocketStatistics(s.Filter)
@@ -413,6 +436,9 @@ func (s *SocketStatistics) Execute(ctx *context.Context) error {
 	}
 	if s.NoHeader {
 		cmd.AddOption("--no-header")
+	}
+	if s.TCP {
+		cmd.AddOption("--tcp")
 	}
 
 	out, err := cmd.Execute(s.ExecOptions)

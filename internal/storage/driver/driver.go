@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2021 NetEase Inc.
+ *  Copyright (c) 2023 NetEase Inc.
  *
  *  Licensed under the Apache License, Version 2.0 (the "License");
  *  you may not use this file except in compliance with the License.
@@ -11,29 +11,30 @@
  *  distributed under the License is distributed on an "AS IS" BASIS,
  *  WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  *  See the License for the specific language governing permissions and
- *  limitations under the License.
+ *  limitations under the Licensele().
  */
 
 /*
  * Project: CurveAdm
- * Created Date: 2022-01-13
+ * Created Date: 2023-05-24
  * Author: Jingli Chen (Wine93)
  */
 
-package scripts
+package driver
 
-/*
- * Usage: recycle SOURCE DESTINATION SIZE
- * Example: recycle '/data/chunkserver0/copysets /data/chunkserver0/recycler' /data/chunkserver0/chunkfilepool 16781312
- */
-var RECYCLE = `
-g_source=$1
-g_dest=$2
-g_size=$3
-chunkid=$(ls -vr ${g_dest} | head -n 1)
-chunkid=${chunkid%.clean}
-for file in $(find $g_source -type f -size ${g_size}c -printf '%p\n'); do
-    chunkid=$((chunkid+1))
-    mv $file $g_dest/$chunkid
-done
-`
+type IQueryResult interface {
+	Next() bool
+	Scan(dest ...any) error
+	Close() error
+}
+
+type IWriteResult interface {
+	LastInsertId() (int64, error)
+}
+
+type IDataBaseDriver interface {
+	Open(dbUrl string) error
+	Close() error
+	Query(query string, args ...any) (IQueryResult, error)
+	Write(query string, args ...any) (IWriteResult, error)
+}

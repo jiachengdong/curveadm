@@ -116,11 +116,10 @@ func (s *step2EditFSTab) execute(ctx *context.Context) error {
 		NoClobber:   true,
 		ExecOptions: curveadm.ExecOptions(),
 	})
-	steps = append(steps, &step.ListBlockDevice{ // uuid for device
-		Device:      []string{s.device},
-		Format:      "UUID",
-		NoHeadings:  true,
-		Success:     &success,
+	steps = append(steps, &step.BlockId{ // uuid for device
+		Device:      s.device,
+		Format:      "value",
+		MatchTag:    "UUID",
 		Out:         &s.uuid,
 		ExecOptions: curveadm.ExecOptions(),
 	})
@@ -187,7 +186,7 @@ func NewFormatChunkfilePoolTask(curveadm *cli.CurveAdm, fc *configure.FormatConf
 	containerName := device2ContainerName(device)
 	layout := topology.GetCurveBSProjectLayout()
 	chunkfilePoolRootDir := layout.ChunkfilePoolRootDir
-	formatScript := scripts.SCRIPT_FORMAT
+	formatScript := scripts.FORMAT
 	formatScriptPath := fmt.Sprintf("%s/format.sh", layout.ToolsBinDir)
 	formatCommand := fmt.Sprintf("%s %s %d %d %s %s", formatScriptPath, layout.FormatBinaryPath,
 		usagePercent, DEFAULT_CHUNKFILE_SIZE, layout.ChunkfilePoolDir, layout.ChunkfilePoolMetaPath)
@@ -205,10 +204,10 @@ func NewFormatChunkfilePoolTask(curveadm *cli.CurveAdm, fc *configure.FormatConf
 		Lambda: skipFormat(&oldContainerId),
 	})
 	// 2: mkfs, mount device, edit fstab
-	t.AddStep(&step.ListBlockDevice{
-		Device:      []string{device},
-		Format:      "UUID",
-		NoHeadings:  true,
+	t.AddStep(&step.BlockId{
+		Device:      device,
+		Format:      "value",
+		MatchTag:    "UUID",
 		Out:         &oldUUID,
 		ExecOptions: curveadm.ExecOptions(),
 	})

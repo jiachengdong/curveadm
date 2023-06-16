@@ -49,6 +49,7 @@ type step2SetClusterPool struct {
 }
 
 func getClusterPool(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (configure.CurveClusterTopo, error) {
+	poolset := curveadm.MemStorage().Get(comm.KEY_POOLSET).(configure.Poolset)
 	oldPool := configure.CurveClusterTopo{}
 	dcs, err := curveadm.ParseTopology()
 	if err != nil {
@@ -58,7 +59,7 @@ func getClusterPool(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (configur
 	// 1) generate a new default pool
 	data := curveadm.ClusterPoolData()
 	if len(data) == 0 {
-		return configure.GenerateDefaultClusterPool(dcs)
+		return configure.GenerateDefaultClusterPool(dcs, poolset)
 	}
 
 	// 2) OR change old pool and return it
@@ -66,7 +67,7 @@ func getClusterPool(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (configur
 	if err != nil {
 		return oldPool, err
 	}
-	pool, err := configure.GenerateDefaultClusterPool(dcs)
+	pool, err := configure.GenerateDefaultClusterPool(dcs, poolset)
 	if err != nil {
 		return pool, err
 	}
@@ -98,7 +99,8 @@ func prepare(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (clusterPoolJson
 	// 2. scale out cluster or migrate servers
 	if curveadm.MemStorage().Get(comm.KEY_SCALE_OUT_CLUSTER) != nil { // scale out cluster
 		dcs := curveadm.MemStorage().Get(comm.KEY_SCALE_OUT_CLUSTER).([]*topology.DeployConfig)
-		configure.ScaleOutClusterPool(&clusterPool, dcs)
+		poolset := curveadm.MemStorage().Get(comm.KEY_POOLSET).(configure.Poolset)
+		configure.ScaleOutClusterPool(&clusterPool, dcs, poolset)
 	} else if curveadm.MemStorage().Get(comm.KEY_MIGRATE_SERVERS) != nil { // migrate servers
 		migrates := curveadm.MemStorage().Get(comm.KEY_MIGRATE_SERVERS).([]*configure.MigrateServer)
 		configure.MigrateClusterServer(&clusterPool, migrates)
@@ -187,8 +189,8 @@ func NewCreateTopologyTask(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (*
 
 	// new task
 	pooltype := curveadm.MemStorage().Get(comm.KEY_CREATE_POOL_TYPE).(string)
-	name := utils.Choose(pooltype == comm.POOL_TYPE_LOGICAL, "Create Logical Pool",
-		"Create Physical Pool")
+	name := utils.Choose(pooltype == comm.POOL_TYPE_LOGICAL,
+		"Create Logical Pool", "Create Physical Pool")
 	subname := fmt.Sprintf("host=%s role=%s containerId=%s",
 		dc.GetHost(), dc.GetRole(), tui.TrimContainerId(containerId))
 	t := task.NewTask(name, subname, hc.GetSSHConfig())
@@ -199,7 +201,7 @@ func NewCreateTopologyTask(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (*
 	host, role := dc.GetHost(), dc.GetRole()
 	layout := dc.GetProjectLayout()
 	poolJSONPath := fmt.Sprintf("%s/topology.json", layout.ToolsConfDir)
-	waitScript := scripts.SCRIPT_WAIT
+	waitScript := scripts.WAIT
 	waitScriptPath := fmt.Sprintf("%s/wait.sh", layout.ToolsBinDir)
 	clusterPoolJson, clusterMDSAddrs, err := prepare(curveadm, dc)
 	if err != nil {
@@ -242,8 +244,9 @@ func NewCreateTopologyTask(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (*
 	})
 
 	if dc.GetKind() == topology.KIND_CURVEBS && pooltype == comm.POOL_TYPE_LOGICAL {
-		waitChunkserversScript := scripts.SCRIPT_WAIT_CHUNKSERVERS
+		waitChunkserversScript := scripts.WAIT_CHUNKSERVERS
 		waitChunkserversScriptPath := fmt.Sprintf("%s/wait_chunkservers.sh", layout.ToolsBinDir)
+		nchunkserver := curveadm.MemStorage().Get(comm.KEY_NUMBER_OF_CHUNKSERVER).(int)
 		t.AddStep(&step.InstallFile{ // install wait_chunkservers script
 			ContainerId:       &containerId,
 			ContainerDestPath: waitChunkserversScriptPath,
@@ -252,7 +255,7 @@ func NewCreateTopologyTask(curveadm *cli.CurveAdm, dc *topology.DeployConfig) (*
 		})
 		t.AddStep(&step.ContainerExec{ // wait all chunkservers online before create logical pool
 			ContainerId: &containerId,
-			Command:     fmt.Sprintf("bash %s", waitChunkserversScriptPath),
+			Command:     fmt.Sprintf("bash %s %d", waitChunkserversScriptPath, nchunkserver),
 			Success:     &success,
 			Out:         &out,
 			ExecOptions: curveadm.ExecOptions(),

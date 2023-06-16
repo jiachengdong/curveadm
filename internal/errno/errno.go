@@ -233,6 +233,8 @@ var (
 	ERR_UNSUPPORT_SKIPPED_CHECK_ITEM   = EC(210004, "unsupport skipped check item")
 	ERR_UNSUPPORT_CLEAN_ITEM           = EC(210005, "unsupport clean item")
 	ERR_NO_SERVICES_MATCHED            = EC(210006, "no services matched")
+	// TODO: please check pool set disk type
+	ERR_INVALID_DISK_TYPE = EC(210007, "poolset disk type must be lowercase and can only be one of ssd, hdd and nvme")
 
 	// 220: commad options (client common)
 	ERR_UNSUPPORT_CLIENT_KIND = EC(220000, "unsupport client kind")
@@ -493,6 +495,7 @@ var (
 	ERR_INSTALL_OR_REMOVE_DEBIAN_PACKAGE_FAILED    = EC(620024, "install or remove debian package failed (dpkg)")
 	ERR_INSTALL_OR_REMOVE_RPM_PACKAGE_FAILED       = EC(620025, "install or remove rpm package failed (rpm)")
 	ERR_SECURE_COPY_FILE_TO_REMOTE_FAILED          = EC(620026, "secure copy file to remote failed (scp)")
+	ERR_GET_BLOCK_DEVICE_UUID_FAILED               = EC(620027, "get block device uuid failed (blkid)")
 	ERR_RUN_SCRIPT_FAILED                          = EC(620998, "run script failed (bash script.sh)")
 	ERR_RUN_A_BASH_COMMAND_FAILED                  = EC(620999, "run a bash command failed (bash -c)")
 
